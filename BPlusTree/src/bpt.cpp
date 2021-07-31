@@ -30,8 +30,42 @@ bool bpt::init(char *fname)
 	infile.close();
 	return true;
 }
-//TODO: 使用二分搜索
+
 bool bpt::ins(string key, string value)
+{
+	State state = State{false, "NULL"};
+	state = operate(insertion, key, value);
+	if (state.flag)
+	{
+		return true;
+	}
+	else
+	{
+		cout << "Conflicting!" << endl;
+		cout << "Original data: " << state.value << " New data: " << value << endl;
+		return false;
+	}
+}
+
+bool bpt::select(string key)
+{
+	State state = State{false, "NULL"};
+	state = operate(selection, key, "NULL");
+	if (state.flag)
+	{
+		cout << "Index: " << key << endl;
+		cout << "Value: " << state.value << endl;
+		return true;
+	}
+	else
+	{
+		cout << "No data!" << endl;
+		return false;
+	}
+}
+
+//TODO: 使用二分搜索
+State bpt::operate(opt option, string key, string value)
 {
 	Node *nodep = root;
 	list<string>::iterator key_it;
@@ -39,10 +73,14 @@ bool bpt::ins(string key, string value)
 	list<Node *>::iterator node_it;
 	int count;
 	// if root is full
-	if (nodep->size >= order - 1)
+	if (option == insertion)
 	{
-		nodep = split(nodep);
+		if (nodep->size >= order - 1)
+		{
+			nodep = split(nodep);
+		}
 	}
+
 	while (!nodep->childNodePtrs.empty())
 	{
 		count = 0;
@@ -52,11 +90,7 @@ bool bpt::ins(string key, string value)
 			key_it++;
 			count++;
 		}
-		if (*key_it == key)
-		{
-			return false;
-		}
-		else if (*key_it < key)
+		if (*key_it <= key)
 		{
 			count++;
 		}
@@ -64,18 +98,28 @@ bool bpt::ins(string key, string value)
 		advance(node_it, count);
 		nodep = *node_it;
 		//if full?
-		if (nodep->size >= order - 1)
+		if (option == insertion)
 		{
-			nodep = split(nodep);
+			if (nodep->size >= order - 1)
+			{
+				nodep = split(nodep);
+			}
 		}
 	}
 	//first node
 	if (nodep->key.empty())
 	{
-		nodep->key.push_back(key);
-		nodep->values.push_back(value);
-		nodep->size++;
-		return true;
+		if (option == insertion)
+		{
+			nodep->key.push_back(key);
+			nodep->values.push_back(value);
+			nodep->size++;
+			return State{true, "NULL"};
+		}
+		else
+		{
+			return State{false, "NULL"};
+		}
 	}
 	count = 0;
 	key_it = nodep->key.begin();
@@ -84,29 +128,55 @@ bool bpt::ins(string key, string value)
 		key_it++;
 		count++;
 	}
-	if (*key_it < key)
+	if (*key_it == key)
 	{
-		nodep->key.push_back(key);
-		nodep->values.push_back(value);
-		nodep->size++;
-		return true;
+		value_it = nodep->values.begin();
+		string str;
+		advance(value_it, count);
+		str = *value_it;
+		if (option == insertion)
+		{
+			return State{false, str};
+		}
+		else if (option == selection)
+		{
+			return State{true, str};
+		}
+		else
+		{
+			return State{true, "NULL"};
+		}
+	}
+	else if (*key_it < key)
+	{
+		if (option == insertion)
+		{
+			nodep->key.push_back(key);
+			nodep->values.push_back(value);
+			nodep->size++;
+			return State{true, "NULL"};
+		}
+		else
+		{
+			return State{false, "NULL"};
+		}
 	}
 	else
 	{
-		nodep->key.insert(key_it, key);
-		value_it = nodep->values.begin();
-		advance(value_it, count);
-		nodep->values.insert(value_it, value);
-		nodep->size++;
-		return true;
+		if (option == insertion)
+		{
+			nodep->key.insert(key_it, key);
+			value_it = nodep->values.begin();
+			advance(value_it, count);
+			nodep->values.insert(value_it, value);
+			nodep->size++;
+			return State{true, "NULL"};
+		}
+		else
+		{
+			return State{false, "NULL"};
+		}
 	}
-}
-
-bool bpt::ins1(string key, string value)
-{
-	cout << key << endl;
-	cout << value << endl;
-	return true;
 }
 
 void bpt::serialize(string fname)

@@ -54,9 +54,12 @@ int main(int argc, char **argv)
 		}
 		else if (cmd.size() == 3 && !strcmp((char *)cmd[0].data(), "insert"))
 		{
-			cout << cmd[1] << endl;
-			cout << cmd[2] << endl;
 			tree.ins(cmd[1], cmd[2]);
+			free(line);
+		}
+		else if (cmd.size() == 2 && !strcmp((char *)cmd[0].data(), "init"))
+		{
+			tree.init((char *)cmd[1].data());
 			free(line);
 		}
 		else if (cmd.size() == 2 && !strcmp((char *)cmd[0].data(), "delete"))
@@ -65,7 +68,8 @@ int main(int argc, char **argv)
 		}
 		else if (cmd.size() == 2 && !strcmp((char *)cmd[0].data(), "select"))
 		{
-			/* code */
+			tree.select(cmd[1]);
+			free(line);
 		}
 		else if (cmd.size() == 3 && !strcmp((char *)cmd[0].data(), "update"))
 		{

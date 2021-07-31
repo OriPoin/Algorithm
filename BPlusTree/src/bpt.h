@@ -22,6 +22,19 @@ struct Node
     /*----leaf----end-----*/
 };
 
+enum opt
+{
+    insertion,
+    selection,
+    modification,
+    delection,
+};
+
+struct State{
+    bool flag;
+    string value;
+};
+
 class bpt
 {
 private:
@@ -30,19 +43,20 @@ private:
     string dbname;
 
     bool iscant(Node *node);
-    Node* split(Node *fulnode);
+    Node *split(Node *fulnode);
     int addrecord(string key, string index, string value);
     Node *merge(Node *node);
 
 public:
     bpt(int order);
     bool init(char *fname);
-    void del(string key);
-    void deserialize(string fname);
-    bool ins(string key, string value);
-    bool ins1(string key, string value);
-    void select(string key);
-    void serialize(string fname);
     void setorder(int order);
+    bool ins(string key, string value);
+    bool select(string key);
     void update(string key, string value);
+    void del(string key);
+    bool rselect(string minkey,string maxkey);
+    State operate(opt option, string key, string value);
+    void deserialize(string fname);
+    void serialize(string fname);
 };
