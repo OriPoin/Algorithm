@@ -43,9 +43,9 @@ private:
     string dbname;
 
     bool iscant(Node *node);
-    Node *split(Node *fulnode);
+    Node *split(Node *fullnode);
     int addrecord(string key, string index, string value);
-    Node *merge(Node *node);
+    Node *merge(Node *scantnode);
 
 public:
     bpt(int order);

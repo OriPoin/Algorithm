@@ -297,6 +297,18 @@ Node *bpt::split(Node *fullnode)
 		}
 		fullnode->size = order / 2;
 		newnode->size = order - 1 - order / 2;
+		if (fullnode->next != NULL)
+		{
+			newnode->next = fullnode->next;
+			newnode->next->previous = newnode;
+			newnode->previous = fullnode;
+			fullnode->next = newnode;
+		}
+		else
+		{
+			fullnode->next = newnode;
+			newnode->previous = fullnode;
+		}
 		key_it = topnode->key.begin();
 		advance(key_it, count);
 		if (key_it == topnode->key.end())

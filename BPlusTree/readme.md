@@ -1,6 +1,6 @@
 # B+ tree
 
-要求参见`./BPlusTree.md`
+要求参见[BPlusTree.md](BPlusTree.md)
 
 - [x] 插入
 - [x] 查询
