@@ -4,7 +4,7 @@
 
 - [x] 插入
 - [x] 查询
-- [ ] 修改
+- [x] 修改
 - [ ] 删除
 
 ## 编译
@@ -67,4 +67,24 @@ bpt> select ${KEY}
 bpt> select 088
 Index: 088
 Value: 088
+```
+
+修改数据，然后查询
+
+```bash
+bpt> update ${KEY} ${NEW_VALUE}
+```
+
+完整测试如下：
+
+```bash
+bpt> init 100Random.db
+bpt> update 050 500
+Index: 050
+Value: 050 => 500
+bpt> select 050
+Index: 050
+Value: 500
+bpt> update 123 123
+No such key
 ```

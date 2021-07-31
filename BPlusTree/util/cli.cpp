@@ -73,7 +73,8 @@ int main(int argc, char **argv)
 		}
 		else if (cmd.size() == 3 && !strcmp((char *)cmd[0].data(), "update"))
 		{
-			/* code */
+			tree.update(cmd[1], cmd[2]);
+			free(line);
 		}
 		else
 		{

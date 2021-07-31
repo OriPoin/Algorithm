@@ -53,7 +53,7 @@ public:
     void setorder(int order);
     bool ins(string key, string value);
     bool select(string key);
-    void update(string key, string value);
+    bool update(string key, string value);
     void del(string key);
     bool rselect(string minkey,string maxkey);
     State operate(opt option, string key, string value);

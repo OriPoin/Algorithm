@@ -64,6 +64,23 @@ bool bpt::select(string key)
 	}
 }
 
+bool bpt::update(string key, string value)
+{
+	State state = State{false, "NULL"};
+	state = operate(modification, key, value);
+	if (state.flag)
+	{
+		cout << "Index: " << key << endl;
+		cout << "Value: " << state.value << " => " << value << endl;
+		return true;
+	}
+	else
+	{
+		cout << "No such key" << endl;
+		return false;
+	}
+}
+
 //TODO: 使用二分搜索
 State bpt::operate(opt option, string key, string value)
 {
@@ -140,6 +157,11 @@ State bpt::operate(opt option, string key, string value)
 		}
 		else if (option == selection)
 		{
+			return State{true, str};
+		}
+		else if (option == modification)
+		{
+			*value_it = value;
 			return State{true, str};
 		}
 		else
