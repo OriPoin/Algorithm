@@ -23,7 +23,6 @@ bool bpt::init(char *fname)
 		while (infile >> data1)
 		{
 			infile >> data2;
-			// cout << data1 << " " << data2 << endl;
 			ins(data1, data2);
 		}
 	}
@@ -34,7 +33,9 @@ bool bpt::init(char *fname)
 bool bpt::ins(string key, string value)
 {
 	State state = State{false, "NULL"};
-	state = operate(insertion, key, value);
+	Node *LeafNode = LocateLeaf(root, key);
+	state = operate(LeafNode, insertion, key, value);
+	backtrace(LeafNode, state.value);
 	if (state.flag)
 	{
 		return true;
@@ -46,11 +47,12 @@ bool bpt::ins(string key, string value)
 		return false;
 	}
 }
-
 bool bpt::select(string key)
 {
 	State state = State{false, "NULL"};
-	state = operate(selection, key, "NULL");
+	Node *LeafNode = LocateLeaf(root, key);
+	state = operate(LeafNode, selection, key, "NULL");
+	backtrace(LeafNode, state.value);
 	if (state.flag)
 	{
 		cout << "Index: " << key << endl;
@@ -67,7 +69,9 @@ bool bpt::select(string key)
 bool bpt::update(string key, string value)
 {
 	State state = State{false, "NULL"};
-	state = operate(modification, key, value);
+	Node *LeafNode = LocateLeaf(root, key);
+	state = operate(LeafNode, modification, key, value);
+	backtrace(LeafNode, state.value);
 	if (state.flag)
 	{
 		cout << "Index: " << key << endl;
@@ -81,124 +85,136 @@ bool bpt::update(string key, string value)
 	}
 }
 
-//TODO: 使用二分搜索
-State bpt::operate(opt option, string key, string value)
+Node *bpt::LocateLeaf(Node *node, string key)
 {
-	Node *nodep = root;
-	list<string>::iterator key_it;
-	list<string>::iterator value_it;
-	list<Node *>::iterator node_it;
-	int count;
-	// if root is full
-	if (option == insertion)
+	if (node->childNodePtrs.empty())
 	{
-		if (nodep->size >= order - 1)
-		{
-			nodep = split(nodep);
-		}
-	}
-
-	while (!nodep->childNodePtrs.empty())
-	{
-		count = 0;
-		key_it = nodep->key.begin();
-		while (*key_it < key && count < nodep->size - 1)
-		{
-			key_it++;
-			count++;
-		}
-		if (*key_it <= key)
-		{
-			count++;
-		}
-		node_it = nodep->childNodePtrs.begin();
-		advance(node_it, count);
-		nodep = *node_it;
-		//if full?
-		if (option == insertion)
-		{
-			if (nodep->size >= order - 1)
-			{
-				nodep = split(nodep);
-			}
-		}
-	}
-	//first node
-	if (nodep->key.empty())
-	{
-		if (option == insertion)
-		{
-			nodep->key.push_back(key);
-			nodep->values.push_back(value);
-			nodep->size++;
-			return State{true, "NULL"};
-		}
-		else
-		{
-			return State{false, "NULL"};
-		}
-	}
-	count = 0;
-	key_it = nodep->key.begin();
-	while (*key_it < key && (*key_it != nodep->key.back()))
-	{
-		key_it++;
-		count++;
-	}
-	if (*key_it == key)
-	{
-		value_it = nodep->values.begin();
-		string str;
-		advance(value_it, count);
-		str = *value_it;
-		if (option == insertion)
-		{
-			return State{false, str};
-		}
-		else if (option == selection)
-		{
-			return State{true, str};
-		}
-		else if (option == modification)
-		{
-			*value_it = value;
-			return State{true, str};
-		}
-		else
-		{
-			return State{true, "NULL"};
-		}
-	}
-	else if (*key_it < key)
-	{
-		if (option == insertion)
-		{
-			nodep->key.push_back(key);
-			nodep->values.push_back(value);
-			nodep->size++;
-			return State{true, "NULL"};
-		}
-		else
-		{
-			return State{false, "NULL"};
-		}
+		return node;
 	}
 	else
 	{
-		if (option == insertion)
+		int pos = SearchKey(node, key);
+		pos++;
+		list<Node *>::iterator node_it = node->childNodePtrs.begin();
+		if (pos != 0)
 		{
-			nodep->key.insert(key_it, key);
-			value_it = nodep->values.begin();
-			advance(value_it, count);
-			nodep->values.insert(value_it, value);
-			nodep->size++;
+			advance(node_it, pos);
+		}
+		return LocateLeaf(*node_it, key);
+	}
+}
+
+int bpt::SearchKey(Node *node, string key)
+{
+	if (node->size == 0)
+	{
+		return -1;
+	}
+	int left = 0;
+	int right = node->size - 1;
+	list<string>::iterator key_it;
+	while (left <= right)
+	{
+		int middle = (left + right) / 2;
+		key_it = node->key.begin();
+		if (middle != 0)
+		{
+			advance(key_it, middle);
+		}
+		if (*key_it > key)
+		{
+			right = middle - 1;
+		}
+		else
+		{
+			left = middle + 1;
+		}
+	}
+	return right;
+}
+
+void bpt::backtrace(Node *LeafNode, string value)
+{
+	Node *nodep = LeafNode;
+	if (nodep->parentPtr == NULL && nodep->size < order)
+	{
+		return;
+	}
+	else
+	{
+		if (nodep->size >= order)
+		{
+			nodep = split(nodep);
+		}
+		else if (nodep->size < order / 2)
+		{
+			nodep = merge(nodep);
+		}
+		else
+		{
+			nodep = nodep->parentPtr;
+		}
+		backtrace(nodep, value);
+	}
+}
+
+State bpt::operate(Node *LeafNode, opt option, string key, string value)
+{
+	int pos = SearchKey(LeafNode, key);
+	if (pos < 0 && option == insertion)
+	{
+		LeafNode->key.push_front(key);
+		LeafNode->values.push_front(value);
+		LeafNode->size++;
+		return State{true, "NULL"};
+	}
+	list<string>::iterator key_it;
+	list<string>::iterator value_it;
+	key_it = LeafNode->key.begin();
+	if (pos != 0)
+	{
+		advance(key_it, pos);
+	}
+	if (option == insertion && *key_it < key)
+	{
+		if (pos >= LeafNode->size - 1)
+		{
+			LeafNode->key.push_back(key);
+			LeafNode->values.push_back(value);
+			LeafNode->size++;
 			return State{true, "NULL"};
 		}
 		else
 		{
-			return State{false, "NULL"};
+			key_it++;
+			LeafNode->key.insert(key_it, key);
+			value_it = LeafNode->values.begin();
+			advance(value_it, pos + 1);
+			LeafNode->values.insert(value_it, value);
+			LeafNode->size++;
+			return State{true, "NULL"};
 		}
 	}
+	else if (*key_it == key)
+	{
+		value_it = LeafNode->values.begin();
+		advance(value_it, pos);
+		if (option == insertion)
+		{
+			return State{false, *value_it};
+		}
+		else if (option == selection)
+		{
+			return State{true, *value_it};
+		}
+		else if (option == modification)
+		{
+			string str = *value_it;
+			*value_it = value;
+			return State{true, str};
+		}
+	}
+	return State{false, "NULL"};
 }
 
 void bpt::serialize(string fname)
@@ -244,32 +260,18 @@ Node *bpt::split(Node *fullnode)
 			topnode->childNodePtrs.insert(node_it, newnode);
 		}
 	}
-	// leaf node
+	key_it = fullnode->key.begin();
+	advance(key_it, order / 2);
+	fullnode->key.splice(newnode->key.begin(), fullnode->key, key_it, fullnode->key.end());
+	fullnode->size = order / 2;
+	newnode->size = order - order / 2;
+	key_it = topnode->key.begin();
+	advance(key_it, count);
 	if (fullnode->childNodePtrs.empty())
 	{
-		key_it = fullnode->key.begin();
-		advance(key_it, order / 2);
-		fullnode->key.splice(newnode->key.begin(), fullnode->key, key_it, fullnode->key.end());
 		list<string>::iterator value_it = fullnode->values.begin();
 		advance(value_it, order / 2);
 		fullnode->values.splice(newnode->values.begin(), fullnode->values, value_it, fullnode->values.end());
-		fullnode->size = order / 2;
-		newnode->size = order - 1 - order / 2;
-		if (fullnode->next != NULL)
-		{
-			newnode->next = fullnode->next;
-			newnode->next->previous = newnode;
-			newnode->previous = fullnode;
-			fullnode->next = newnode;
-		}
-		else
-		{
-			fullnode->next = newnode;
-			newnode->previous = fullnode;
-		}
-		// childPtrs of topnode
-		key_it = topnode->key.begin();
-		advance(key_it, count);
 		if (key_it == topnode->key.end())
 		{
 			topnode->key.push_back(newnode->key.front());
@@ -282,36 +284,17 @@ Node *bpt::split(Node *fullnode)
 			topnode->size++;
 		}
 	}
-	else // internal node
+	else
 	{
-		key_it = fullnode->key.begin();
-		advance(key_it, order / 2);
-		fullnode->key.splice(newnode->key.begin(), fullnode->key, key_it, fullnode->key.end());
 		node_it = fullnode->childNodePtrs.begin();
-		advance(node_it, order / 2 + 1);
+		advance(node_it, 1 + order / 2);
 		fullnode->childNodePtrs.splice(newnode->childNodePtrs.begin(), fullnode->childNodePtrs, node_it, fullnode->childNodePtrs.end());
 		for (list<Node *>::iterator it = newnode->childNodePtrs.begin(); it != newnode->childNodePtrs.end(); ++it)
 		{
 			Node *nodep = *it;
 			nodep->parentPtr = newnode;
 		}
-		fullnode->size = order / 2;
-		newnode->size = order - 1 - order / 2;
-		if (fullnode->next != NULL)
-		{
-			newnode->next = fullnode->next;
-			newnode->next->previous = newnode;
-			newnode->previous = fullnode;
-			fullnode->next = newnode;
-		}
-		else
-		{
-			fullnode->next = newnode;
-			newnode->previous = fullnode;
-		}
-		key_it = topnode->key.begin();
-		advance(key_it, count);
-		if (key_it == topnode->key.end())
+				if (key_it == topnode->key.end())
 		{
 			topnode->key.push_back(newnode->key.front());
 			topnode->size++;
@@ -327,5 +310,22 @@ Node *bpt::split(Node *fullnode)
 			newnode->size--;
 		}
 	}
+	if (fullnode->next != NULL)
+	{
+		newnode->next = fullnode->next;
+		newnode->next->previous = newnode;
+		newnode->previous = fullnode;
+		fullnode->next = newnode;
+	}
+	else
+	{
+		fullnode->next = newnode;
+		newnode->previous = fullnode;
+	}
 	return topnode;
+}
+
+Node *bpt::merge(Node *scantnode)
+{
+	return scantnode;
 }

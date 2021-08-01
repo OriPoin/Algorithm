@@ -30,7 +30,8 @@ enum opt
     delection,
 };
 
-struct State{
+struct State
+{
     bool flag;
     string value;
 };
@@ -46,6 +47,7 @@ private:
     Node *split(Node *fullnode);
     int addrecord(string key, string index, string value);
     Node *merge(Node *scantnode);
+    int SearchKey(Node *node, string key);
 
 public:
     bpt(int order);
@@ -55,8 +57,10 @@ public:
     bool select(string key);
     bool update(string key, string value);
     void del(string key);
-    bool rselect(string minkey,string maxkey);
-    State operate(opt option, string key, string value);
+    bool rselect(string minkey, string maxkey);
+    Node *LocateLeaf(Node *root, string key);
+    State operate(Node *LeafNode, opt option, string key, string value);
+    void backtrace(Node* LeafNode,string value);
     void deserialize(string fname);
     void serialize(string fname);
 };
