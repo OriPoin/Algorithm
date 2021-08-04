@@ -5,7 +5,9 @@
 - [x] 插入
 - [x] 查询
 - [x] 修改
-- [ ] 删除
+- [X] 删除
+- [ ] 序列化
+- [ ] 内存缓存
 
 ## 编译
 
@@ -86,5 +88,23 @@ bpt> select 050
 Index: 050
 Value: 500
 bpt> update 123 123
+No such key
+```
+
+删除
+
+```bash
+bpt> delete ${KEY}
+```
+
+完整测试如下：
+
+```bash
+bpt> init 30Random.db
+bpt> delete 19
+Deleted record
+Index: 19
+Value: 19
+bpt> delete 050
 No such key
 ```

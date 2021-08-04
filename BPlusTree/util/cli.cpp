@@ -22,7 +22,7 @@ int main(int argc, char **argv)
 {
 	static char prompt[] = "bpt> ";
 	char *line;
-	bpt tree = bpt(TREE_ORDER);
+	bpt tree = bpt(NODE_ORDER, LEAF_ORDER);
 	int opt;
 	while ((opt = getopt(argc, argv, "i:o:b:")) != -1)
 	{
@@ -64,7 +64,8 @@ int main(int argc, char **argv)
 		}
 		else if (cmd.size() == 2 && !strcmp((char *)cmd[0].data(), "delete"))
 		{
-			/* code */
+			tree.del((char *)cmd[1].data());
+			free(line);
 		}
 		else if (cmd.size() == 2 && !strcmp((char *)cmd[0].data(), "select"))
 		{

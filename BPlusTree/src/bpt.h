@@ -9,58 +9,61 @@ struct Node
     /*----root---begin----*/
     Node *parentPtr = NULL;
     /*----root---begin----*/
-    list<string> key;
-    uint32_t size = 0;
+    list<string> keyList;
+    uint32_t nodeSize = 0;
     list<Node *> childNodePtrs;
     /*----leaf---begin----*/
-    uint32_t nodeoffset = 0;
-    bool cacahed = 0;
-    Node *previous = NULL;
-    Node *next = NULL;
-    list<uint32_t> index;
-    list<string> values;
+    bool cacaheFlag = 0;
+    Node *leftNode = NULL;
+    Node *rightNode = NULL;
+    uint32_t nodeOffset = 0;
+    list<string> valueList;
+    list<uint32_t> indexList;
     /*----leaf----end-----*/
 };
 
-enum opt
+enum Option
 {
-    insertion,
-    selection,
-    modification,
-    delection,
+    insertOpt,
+    selectOpt,
+    modifyOpt,
+    deletOpt,
 };
-
-struct State
+struct Task
 {
-    bool flag;
-    string value;
+    bool state;
+    Option opt;
+    string key;
+    string val;
+    list<string> *newKeys;
+    list<string> *oldKeys;
 };
 
 class bpt
 {
 private:
-    int order;
+    int NodeOrder;
+    int LeafOrder;
     Node *root;
-    string dbname;
+    Node *leafHead;
+    string dbName;
 
-    bool iscant(Node *node);
     Node *split(Node *fullnode);
-    int addrecord(string key, string index, string value);
     Node *merge(Node *scantnode);
     int SearchKey(Node *node, string key);
 
 public:
-    bpt(int order);
+    bpt(int NodeOrder, int LeafOrder);
     bool init(char *fname);
     void setorder(int order);
     bool ins(string key, string value);
     bool select(string key);
     bool update(string key, string value);
-    void del(string key);
+    bool del(string key);
     bool rselect(string minkey, string maxkey);
     Node *LocateLeaf(Node *root, string key);
-    State operate(Node *LeafNode, opt option, string key, string value);
-    void backtrace(Node* LeafNode,string value);
+    bool operate(Node *LeafNode, Task *task);
+    void backtrace(Node *LeafNode, Task *task);
     void deserialize(string fname);
     void serialize(string fname);
 };
