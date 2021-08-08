@@ -4,7 +4,7 @@
 #include <fstream>
 #include <string>
 #include <cmath>
-#include <vector> 
+#include <vector>
 #include <algorithm>
 #include <unistd.h>
 
@@ -72,12 +72,18 @@ int main(int argc, char **argv)
 		for (std::vector<int>::iterator it = numbres.begin(); it != numbres.end(); ++it)
 		{
 			int num = *it;
-			// std::cout << ' ' << *it;
 			stringstream ss;
 			ss << setw(log10(size) + 1) << setfill('0') << num;
 			string str;
 			ss >> str;
-			dbfile << str << " " << str << "\n";
+			dbfile << str << " ";
+			// for (uint32_t i = 0; i < 8192; i++)
+			for (uint32_t i = 0; i < 1 ; i++)
+			{
+				// dbfile << "12345678";
+				dbfile << str;
+			}
+			dbfile << "\n";
 		}
 		dbfile.close();
 	}

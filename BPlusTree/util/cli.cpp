@@ -22,7 +22,7 @@ int main(int argc, char **argv)
 {
 	static char prompt[] = "bpt> ";
 	char *line;
-	bpt tree = bpt(NODE_ORDER, LEAF_ORDER);
+	bpt tree = bpt(NODE_ORDER, LEAF_ORDER, DBNAME);
 	int opt;
 	while ((opt = getopt(argc, argv, "i:o:b:")) != -1)
 	{
@@ -48,6 +48,8 @@ int main(int argc, char **argv)
 		}
 		if (cmd.size() == 1 && !strcmp((char *)cmd[0].data(), "exit"))
 		{
+			cout << "saving"<<endl;
+			tree.serialize(DBNAME);
 			cout << "bye" << endl;
 			free(line);
 			exit(0);
@@ -75,6 +77,26 @@ int main(int argc, char **argv)
 		else if (cmd.size() == 3 && !strcmp((char *)cmd[0].data(), "update"))
 		{
 			tree.update(cmd[1], cmd[2]);
+			free(line);
+		}
+		else if (cmd.size() == 2 && !strcmp((char *)cmd[0].data(), "load"))
+		{
+			tree.load((char *)cmd[1].data());
+			free(line);
+		}
+		else if (cmd.size() == 2 && !strcmp((char *)cmd[0].data(), "setmode"))
+		{
+			tree.setmode((char *)cmd[1].data());
+			free(line);
+		}
+		else if (cmd.size() == 1 && !strcmp((char *)cmd[0].data(), "save"))
+		{
+			tree.serialize(DBNAME);
+			free(line);
+		}
+		else if (cmd.size() == 2 && !strcmp((char *)cmd[0].data(), "save"))
+		{
+			tree.serialize((char *)cmd[1].data());
 			free(line);
 		}
 		else

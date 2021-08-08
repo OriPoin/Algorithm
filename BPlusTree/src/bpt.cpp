@@ -3,12 +3,29 @@
 #include <fstream>
 #include "bpt.h"
 
-bpt::bpt(int NodeOrder, int LeafOrder)
+bpt::bpt(uint32_t NodeOrder, uint32_t LeafOrder, string dbName)
 {
-	this->NodeOrder = NodeOrder;
-	this->LeafOrder = LeafOrder;
+	setNodeOrder(NodeOrder);
+	setLeafOrder(LeafOrder);
+	setDBname(dbName);
 	root = new Node;
 	leafHead = root;
+	memMode = true;
+	this->nodeOffset = 0;
+	this->dataOffset = 0;
+}
+
+void bpt::setDBname(string name)
+{
+	this->dbName = name;
+}
+void bpt::setNodeOrder(uint32_t order)
+{
+	this->NodeOrder = order;
+}
+void bpt::setLeafOrder(uint32_t order)
+{
+	this->LeafOrder = order;
 }
 
 bool bpt::init(char *fname)
@@ -32,6 +49,324 @@ bool bpt::init(char *fname)
 	return true;
 }
 
+bool bpt::load(char *fname)
+{
+	ifstream dbfile;
+	dbfile.open(fname);
+	string data = "NULL";
+	uint32_t nodeCount = 0;
+	uint32_t lineCount = 0;
+	Node *nodePtr = root;
+	Node *headParentPtr = NULL;
+	Node *leftChildPtr = NULL;
+	Node *rightChildPtr = NULL;
+	string lineHeadstr;
+	while (dbfile >> data)
+	{
+		if (data == "nodeorder")
+		{
+			dbfile >> data;
+			setNodeOrder(stoi(data));
+			nodeOffset = 1;
+		}
+		else if (data == "leaforder")
+		{
+			dbfile >> data;
+			setLeafOrder(stoi(data));
+			nodeOffset = 2;
+		}
+		else if (data == "node")
+		{
+			dbfile >> data;
+			nodeOffset++;
+			while (data != "data")
+			{
+				dbfile >> data;
+				nodeCount = 0;
+				leftChildPtr = new Node;
+				leftChildPtr->parentPtr = nodePtr;
+				nodePtr->childNodePtrs.emplace_back(leftChildPtr);
+				if (nodePtr->leftNode != NULL)
+				{
+					nodePtr->leftNode->childNodePtrs.back()->rightNode = leftChildPtr;
+					leftChildPtr->leftNode = nodePtr->leftNode->childNodePtrs.back();
+				}
+				while (data != "key" && data != "data")
+				{
+					nodeCount++;
+					nodePtr->keyList.emplace_back(data);
+					dbfile >> data;
+					rightChildPtr = new Node;
+					leftChildPtr->rightNode = rightChildPtr;
+					rightChildPtr->leftNode = leftChildPtr;
+					rightChildPtr->parentPtr = nodePtr;
+					nodePtr->childNodePtrs.emplace_back(rightChildPtr);
+					leftChildPtr = rightChildPtr;
+				}
+				nodePtr->nodeSize = nodeCount;
+				if (nodePtr->rightNode != NULL)
+				{
+					nodePtr = nodePtr->rightNode;
+				}
+				else
+				{
+					Node *headnode = nodePtr->childNodePtrs.front();
+					while (headnode->leftNode != NULL)
+					{
+						headnode = headnode->leftNode;
+					}
+					nodePtr = headnode;
+				}
+				nodeOffset++;
+			}
+		}
+		else if (data == "key")
+		{
+			leafHead = nodePtr;
+			nodeOffset++;
+			while (1)
+			{
+				nodeOffset++;
+				nodeCount = 0;
+				while (data != "segment")
+				{
+					dbfile >> data;
+					nodeCount++;
+					nodePtr->keyList.emplace_back(data);
+					dbfile >> data;
+					dbfile >> data;
+					if (memMode)
+					{
+						nodePtr->valueList.emplace_back(data);
+					}
+					else
+					{
+						nodePtr->indexList.emplace_back(nodeOffset);
+					}
+					dbfile >> data;
+				}
+				dbfile >> data;
+				nodePtr->nodeSize = nodeCount;
+				if (nodePtr->rightNode != NULL)
+				{
+					nodePtr = nodePtr->rightNode;
+				}
+				else
+				{
+					return true;
+				}
+			}
+		}
+	}
+	dbfile.close();
+	return true;
+}
+
+void bpt::serialize(string fname)
+{
+	// this->memMode = false;
+	// cacheData(dbName);
+	string fstr = fname;
+	fstr.append(".tmp");
+	initDB(fstr);
+	Trim(fstr);
+	rename(fstr.c_str(), dbName.c_str());
+}
+
+void bpt::setmode(string mode)
+{
+	if (!this->memMode && mode == "mem")
+	{
+		serialize(dbName);
+		cacheData(dbName);
+		this->memMode = true;
+	}
+	else if (this->memMode && mode == "fs")
+	{
+		initDB(dbName);
+		if (root != leafHead || root->nodeSize != 0)
+		{
+			Trim(dbName);
+		}
+		this->memMode = false;
+	}
+}
+
+void bpt::initDB(string fname)
+{
+	fstream dbfile;
+	dbfile.open(fname, fstream::in | fstream::out | fstream::trunc);
+	dbfile << "head"
+		   << "\n"
+		   << "nodeorder " << this->NodeOrder << "\n"
+		   << "leaforder " << this->LeafOrder << "\n"
+		   << "node"
+		   << "\n";
+	nodeOffset = 4;
+	Node *nodePtr;
+	Node *childHeadPtr;
+	list<string>::iterator key_it;
+	list<string>::iterator value_it;
+	list<Node *> node_it;
+	list<Node *> child_it;
+	nodePtr = root;
+	childHeadPtr = root->childNodePtrs.front();
+	while (childHeadPtr != NULL)
+	{
+		dbfile << "key ";
+		for (key_it = nodePtr->keyList.begin(); key_it != nodePtr->keyList.end(); key_it++)
+		{
+			dbfile << *key_it << " ";
+		}
+		dbfile << "\n";
+		nodeOffset++;
+		if (nodePtr->rightNode == NULL)
+		{
+			nodePtr = childHeadPtr;
+			if (nodePtr == leafHead)
+			{
+				childHeadPtr = NULL;
+			}
+			else
+			{
+				childHeadPtr = nodePtr->childNodePtrs.front();
+			}
+		}
+		else
+		{
+			nodePtr = nodePtr->rightNode;
+		}
+		dbfile.sync();
+	}
+	dbfile << "data"
+		   << "\n";
+	nodeOffset++;
+	dataOffset = nodeOffset;
+	dbfile.close();
+}
+
+void bpt::Trim(string fname)
+{
+	fstream dbfile;
+	dbfile.open(fname, fstream::in | fstream::out);
+	list<string>::iterator key_it;
+	list<string>::iterator value_it;
+	list<uint32_t>::iterator index_it;
+	Node *nodePtr;
+	nodePtr = leafHead;
+	string dataBeginStr = "NULL";
+	while (dataBeginStr != "data")
+	{
+		dbfile >> dataBeginStr;
+	}
+	dbfile << "\n";
+	nodePtr = leafHead;
+	while (1)
+	{
+		if (nodePtr == NULL)
+		{
+			break;
+		}
+		key_it = nodePtr->keyList.begin();
+		value_it = nodePtr->valueList.begin();
+		index_it = nodePtr->indexList.begin();
+		for (uint32_t i = 0; i < nodePtr->nodeSize; i++)
+		{
+			dbfile << "key " << *key_it << " ";
+			if (memMode)
+			{
+				dbfile << "value " << *value_it << "\n";
+				nodePtr->indexList.emplace_back(dataOffset);
+			}
+			else
+			{
+				dbfile << "value " << fReadData(*key_it, *index_it) << "\n";
+				*index_it = dataOffset;
+				index_it++;
+			}
+			key_it++;
+			value_it++;
+			dataOffset++;
+		}
+		nodePtr->valueList.clear();
+		dbfile << "segment\n";
+		dbfile.sync();
+		dataOffset++;
+		nodePtr = nodePtr->rightNode;
+	}
+	dbfile.close();
+}
+
+void bpt::cacheData(string fname)
+{
+	list<string>::iterator key_it;
+	list<uint32_t>::iterator index_it;
+	Node *nodePtr = leafHead;
+	while (1)
+	{
+		if (nodePtr == NULL)
+		{
+			break;
+		}
+		key_it = nodePtr->keyList.begin();
+		index_it = nodePtr->indexList.begin();
+		for (uint32_t i = 0; i < nodePtr->nodeSize; i++)
+		{
+			nodePtr->valueList.emplace_back(fReadData(*key_it, *index_it));
+			key_it++;
+			index_it++;
+		}
+		nodePtr->indexList.clear();
+		nodePtr = nodePtr->rightNode;
+	}
+}
+
+string bpt::fReadData(string key, uint32_t lineNum)
+{
+	fstream dbfile;
+	dbfile.open(dbName, fstream::in);
+	for (int currLineNumber = 0; currLineNumber < lineNum; ++currLineNumber)
+	{
+		if (dbfile.ignore(numeric_limits<streamsize>::max(), dbfile.widen('\n')))
+		{
+			// skipping the line
+		}
+	}
+	string data;
+	dbfile >> data;
+	if (data == "key")
+	{
+		dbfile >> data;
+		if (data == key)
+		{
+			dbfile >> data;
+			dbfile >> data;
+			dbfile.close();
+			return data;
+		}
+	}
+	dbfile.close();
+	return "False";
+}
+
+uint32_t bpt::fWriteData(string key, string value)
+{
+	fstream dbfile;
+	dbfile.open(dbName, fstream::in | fstream::out);
+	for (int currLineNumber = 0; currLineNumber < dataOffset; ++currLineNumber)
+	{
+		if (dbfile.ignore(numeric_limits<streamsize>::max(), dbfile.widen('\n')))
+		{
+			// skipping the line
+		}
+	}
+	dbfile << "key " << key << " "
+		   << "value " << value << "\n";
+	dataOffset++;
+	dbfile.close();
+	return dataOffset - 1;
+}
+
 bool bpt::ins(string key, string value)
 {
 	list<string> *newKeys = new list<string>();
@@ -40,14 +375,18 @@ bool bpt::ins(string key, string value)
 	Node *LeafNode = LocateLeaf(root, key);
 	task->state = operate(LeafNode, task);
 	backtrace(LeafNode, task);
+	delete newKeys;
+	delete oldKeys;
 	if (task->state)
 	{
+		delete task;
 		return true;
 	}
 	else
 	{
 		cout << "Conflicting!" << endl;
 		cout << "Original data: " << task->val << " New data: " << value << endl;
+		delete task;
 		return false;
 	}
 }
@@ -59,15 +398,19 @@ bool bpt::select(string key)
 	Node *LeafNode = LocateLeaf(root, key);
 	task->state = operate(LeafNode, task);
 	backtrace(LeafNode, task);
+	delete newKeys;
+	delete oldKeys;
 	if (task->state)
 	{
 		cout << "Index: " << key << endl;
 		cout << "Value: " << task->val << endl;
+		delete task;
 		return true;
 	}
 	else
 	{
-		cout << "No data!" << endl;
+		cout << "No such record!" << endl;
+		delete task;
 		return false;
 	}
 }
@@ -80,15 +423,19 @@ bool bpt::update(string key, string value)
 	Node *LeafNode = LocateLeaf(root, key);
 	task->state = operate(LeafNode, task);
 	backtrace(LeafNode, task);
+	delete newKeys;
+	delete oldKeys;
 	if (task->state)
 	{
 		cout << "Index: " << key << endl;
 		cout << "Value: " << task->val << " => " << value << endl;
+		delete task;
 		return true;
 	}
 	else
 	{
-		cout << "No such key" << endl;
+		cout << "No such record!" << endl;
+		delete task;
 		return false;
 	}
 }
@@ -101,16 +448,20 @@ bool bpt::del(string key)
 	Node *LeafNode = LocateLeaf(root, key);
 	task->state = operate(LeafNode, task);
 	backtrace(LeafNode, task);
+	delete newKeys;
+	delete oldKeys;
 	if (task->state)
 	{
 		cout << "Deleted record" << endl;
 		cout << "Index: " << key << endl;
 		cout << "Value: " << task->val << endl;
+		delete task;
 		return true;
 	}
 	else
 	{
-		cout << "No such key" << endl;
+		cout << "No such record!" << endl;
+		delete task;
 		return false;
 	}
 }
@@ -147,10 +498,7 @@ int bpt::SearchKey(Node *node, string key)
 	{
 		int middle = (left + right) / 2;
 		key_it = node->keyList.begin();
-		if (middle != 0)
-		{
-			advance(key_it, middle);
-		}
+		advance(key_it, middle);
 		if (*key_it > key)
 		{
 			right = middle - 1;
@@ -228,86 +576,154 @@ void bpt::backtrace(Node *LeafNode, Task *task)
 bool bpt::operate(Node *LeafNode, Task *task)
 {
 	int pos = SearchKey(LeafNode, task->key);
+	// First Node or first leaf
 	if (pos < 0 && task->opt == insertOpt)
 	{
-		LeafNode->keyList.push_front(task->key);
-		LeafNode->valueList.push_front(task->val);
+		LeafNode->keyList.emplace_front(task->key);
+		if (memMode)
+		{
+			LeafNode->valueList.emplace_front(task->val);
+		}
+		else
+		{
+			LeafNode->indexList.emplace_front(fWriteData(task->key, task->val));
+		}
 		LeafNode->nodeSize++;
 		return true;
 	}
 	list<string>::iterator key_it;
 	list<string>::iterator value_it;
+	list<uint32_t>::iterator index_it;
 	key_it = LeafNode->keyList.begin();
 	advance(key_it, pos);
 	if (task->opt == insertOpt && *key_it < task->key)
 	{
 		if (pos >= LeafNode->nodeSize - 1)
 		{
-			LeafNode->keyList.push_back(task->key);
-			LeafNode->valueList.push_back(task->val);
+			LeafNode->keyList.emplace_back(task->key);
+			if (memMode)
+			{
+				LeafNode->valueList.emplace_back(task->val);
+			}
+			else
+			{
+				index_it = LeafNode->indexList.begin();
+				advance(index_it, pos + 1);
+				LeafNode->indexList.emplace(index_it, fWriteData(task->key, task->val));
+			}
 			LeafNode->nodeSize++;
 			return true;
 		}
 		else
 		{
 			key_it++;
-			LeafNode->keyList.insert(key_it, task->key);
-			value_it = LeafNode->valueList.begin();
-			advance(value_it, pos + 1);
-			LeafNode->valueList.insert(value_it, task->val);
+			LeafNode->keyList.emplace(key_it, task->key);
+			if (memMode)
+			{
+				value_it = LeafNode->valueList.begin();
+				advance(value_it, pos + 1);
+				LeafNode->valueList.emplace(value_it, task->val);
+			}
+			else
+			{
+				index_it = LeafNode->indexList.begin();
+				advance(index_it, pos + 1);
+				LeafNode->indexList.emplace(index_it, fWriteData(task->key, task->val));
+			}
 			LeafNode->nodeSize++;
 			return true;
 		}
 	}
 	else if (*key_it == task->key)
 	{
-		value_it = LeafNode->valueList.begin();
-		advance(value_it, pos);
-		if (task->opt == insertOpt)
+		if (memMode)
 		{
-			task->val = *value_it;
-			return false;
-		}
-		else if (task->opt == selectOpt)
-		{
-			task->val = *value_it;
-			return true;
-		}
-		else if (task->opt == modifyOpt)
-		{
-			string str = *value_it;
-			*value_it = task->val;
-			task->val = str;
-			return true;
-		}
-		else if (task->opt == deletOpt)
-		{
-			LeafNode->keyList.remove(task->key);
-			task->val = *value_it;
-			LeafNode->valueList.remove(*value_it);
-			LeafNode->nodeSize--;
-			if (pos == 0 && LeafNode->leftNode == NULL)
+			value_it = LeafNode->valueList.begin();
+			advance(value_it, pos);
+			if (task->opt == insertOpt)
 			{
-				return true;
-			}
-			else if (pos < 0)
-			{
+				task->val = *value_it;
 				return false;
 			}
-			else if (pos == 0)
+			else if (task->opt == selectOpt)
 			{
-				task->newKeys->push_back(LeafNode->keyList.front());
-				task->oldKeys->push_back(task->key);
+				task->val = *value_it;
+				return true;
 			}
-			return true;
+			else if (task->opt == modifyOpt)
+			{
+				string str = *value_it;
+				*value_it = task->val;
+				task->val = str;
+				return true;
+			}
+			else if (task->opt == deletOpt)
+			{
+				LeafNode->keyList.remove(task->key);
+				task->val = *value_it;
+				LeafNode->valueList.remove(*value_it);
+				LeafNode->nodeSize--;
+				if (pos == 0 && LeafNode->leftNode == NULL)
+				{
+					return true;
+				}
+				else if (pos < 0)
+				{
+					return false;
+				}
+				else if (pos == 0)
+				{
+					task->newKeys->emplace_back(LeafNode->keyList.front());
+					task->oldKeys->emplace_back(task->key);
+				}
+				return true;
+			}
+		}
+		else
+		{
+			index_it = LeafNode->indexList.begin();
+			advance(index_it, pos);
+			if (task->opt == insertOpt)
+			{
+				task->val = fReadData(task->key, *index_it);
+				return false;
+			}
+			else if (task->opt == selectOpt)
+			{
+				task->val = fReadData(task->key, *index_it);
+				return true;
+			}
+			else if (task->opt == modifyOpt)
+			{
+				string str = fReadData(task->key, *index_it);
+				*index_it = fWriteData(task->key, task->val);
+				task->val = str;
+				return true;
+			}
+			else if (task->opt == deletOpt)
+			{
+				LeafNode->keyList.remove(task->key);
+				task->val = fReadData(task->key, *index_it);
+				LeafNode->indexList.remove(*index_it);
+				LeafNode->nodeSize--;
+				if (pos == 0 && LeafNode->leftNode == NULL)
+				{
+					return true;
+				}
+				else if (pos < 0)
+				{
+					return false;
+				}
+				else if (pos == 0)
+				{
+					task->newKeys->emplace_back(LeafNode->keyList.front());
+					task->oldKeys->emplace_back(task->key);
+				}
+				return true;
+			}
 		}
 	}
 	return false;
-}
-
-void bpt::serialize(string fname)
-{
-	Node *current_node = this->root;
 }
 
 Node *bpt::split(Node *fullnode)
@@ -324,8 +740,8 @@ Node *bpt::split(Node *fullnode)
 		topnode = new Node;
 		fullnode->parentPtr = topnode;
 		newnode->parentPtr = topnode;
-		topnode->childNodePtrs.push_back(fullnode);
-		topnode->childNodePtrs.push_back(newnode);
+		topnode->childNodePtrs.emplace_back(fullnode);
+		topnode->childNodePtrs.emplace_back(newnode);
 		root = topnode;
 	}
 	else
@@ -340,12 +756,12 @@ Node *bpt::split(Node *fullnode)
 		}
 		if (count == topnode->nodeSize)
 		{
-			topnode->childNodePtrs.push_back(newnode);
+			topnode->childNodePtrs.emplace_back(newnode);
 		}
 		else
 		{
 			node_it++;
-			topnode->childNodePtrs.insert(node_it, newnode);
+			topnode->childNodePtrs.emplace(node_it, newnode);
 		}
 	}
 	if (fullnode->childNodePtrs.empty())
@@ -355,20 +771,28 @@ Node *bpt::split(Node *fullnode)
 		fullnode->keyList.splice(newnode->keyList.begin(), fullnode->keyList, key_it, fullnode->keyList.end());
 		fullnode->nodeSize = (LeafOrder + 1) / 2;
 		newnode->nodeSize = LeafOrder + 1 - (LeafOrder + 1) / 2;
-		list<string>::iterator value_it = fullnode->valueList.begin();
-		advance(value_it, (LeafOrder + 1) / 2);
-		fullnode->valueList.splice(newnode->valueList.begin(), fullnode->valueList, value_it, fullnode->valueList.end());
+		if (memMode)
+		{
+			list<string>::iterator value_it = fullnode->valueList.begin();
+			advance(value_it, (LeafOrder + 1) / 2);
+			fullnode->valueList.splice(newnode->valueList.begin(), fullnode->valueList, value_it, fullnode->valueList.end());
+		}
+		else
+		{
+			list<uint32_t>::iterator index_it = fullnode->indexList.begin();
+			advance(index_it, (LeafOrder + 1) / 2);
+			fullnode->indexList.splice(newnode->indexList.begin(), fullnode->indexList, index_it, fullnode->indexList.end());
+		}
 		key_it = topnode->keyList.begin();
 		advance(key_it, count);
 		if (key_it == topnode->keyList.end())
 		{
-			topnode->keyList.push_back(newnode->keyList.front());
+			topnode->keyList.emplace_back(newnode->keyList.front());
 			topnode->nodeSize++;
 		}
 		else
 		{
-			// key_it++;
-			topnode->keyList.insert(key_it, newnode->keyList.front());
+			topnode->keyList.emplace(key_it, newnode->keyList.front());
 			topnode->nodeSize++;
 		}
 	}
@@ -398,15 +822,14 @@ Node *bpt::split(Node *fullnode)
 		}
 		if (key_it == topnode->keyList.end())
 		{
-			topnode->keyList.push_back(newnode->keyList.front());
+			topnode->keyList.emplace_back(newnode->keyList.front());
 			topnode->nodeSize++;
 			newnode->keyList.pop_front();
 			newnode->nodeSize--;
 		}
 		else
 		{
-			// key_it++;
-			topnode->keyList.insert(key_it, newnode->keyList.front());
+			topnode->keyList.emplace(key_it, newnode->keyList.front());
 			topnode->nodeSize++;
 			newnode->keyList.pop_front();
 			newnode->nodeSize--;
@@ -454,7 +877,7 @@ Node *bpt::merge(Node *scantnode)
 	{
 		if (sizep > sizen)
 		{
-			scantnode->keyList.push_front(scantnode->leftNode->keyList.back());
+			scantnode->keyList.emplace_front(scantnode->leftNode->keyList.back());
 			scantnode->nodeSize++;
 			scantnode->leftNode->keyList.pop_back();
 			scantnode->leftNode->nodeSize--;
@@ -469,13 +892,19 @@ Node *bpt::merge(Node *scantnode)
 			advance(key_it, pos - 1);
 			if (scantnode->childNodePtrs.empty())
 			{
-				scantnode->valueList.push_front(scantnode->leftNode->valueList.back());
-				scantnode->leftNode->valueList.pop_back();
+				if (memMode)
+				{
+					scantnode->valueList.splice(scantnode->valueList.begin(), scantnode->leftNode->valueList, scantnode->leftNode->valueList.end());
+				}
+				else
+				{
+					scantnode->indexList.splice(scantnode->indexList.begin(), scantnode->leftNode->indexList, scantnode->leftNode->indexList.end());
+				}
 				*key_it = scantnode->keyList.front();
 			}
 			else
 			{
-				scantnode->childNodePtrs.push_front(scantnode->leftNode->childNodePtrs.back());
+				scantnode->childNodePtrs.emplace_front(scantnode->leftNode->childNodePtrs.back());
 				scantnode->leftNode->childNodePtrs.pop_back();
 				string str = scantnode->keyList.front();
 				scantnode->keyList.front() = *key_it;
@@ -484,7 +913,7 @@ Node *bpt::merge(Node *scantnode)
 		}
 		else
 		{
-			scantnode->keyList.push_back(scantnode->rightNode->keyList.front());
+			scantnode->keyList.emplace_back(scantnode->rightNode->keyList.front());
 			scantnode->nodeSize++;
 			scantnode->rightNode->keyList.pop_front();
 			scantnode->rightNode->nodeSize--;
@@ -499,13 +928,19 @@ Node *bpt::merge(Node *scantnode)
 			advance(key_it, pos);
 			if (scantnode->childNodePtrs.empty())
 			{
-				scantnode->valueList.push_back(scantnode->rightNode->valueList.front());
-				scantnode->rightNode->valueList.pop_front();
+				if (memMode)
+				{
+					scantnode->valueList.splice(scantnode->valueList.end(), scantnode->rightNode->valueList, scantnode->rightNode->valueList.begin());
+				}
+				else
+				{
+					scantnode->indexList.splice(scantnode->indexList.end(), scantnode->rightNode->indexList, scantnode->rightNode->indexList.begin());
+				}
 				*key_it = scantnode->rightNode->keyList.front();
 			}
 			else
 			{
-				scantnode->childNodePtrs.push_front(scantnode->leftNode->childNodePtrs.back());
+				scantnode->childNodePtrs.emplace_front(scantnode->leftNode->childNodePtrs.back());
 				scantnode->leftNode->childNodePtrs.pop_back();
 				string str = scantnode->keyList.back();
 				scantnode->keyList.back() = *key_it;
@@ -543,7 +978,14 @@ Node *bpt::merge(Node *scantnode)
 			{
 				TopNode->keyList.remove(RightNode->keyList.front());
 			}
-			LeftNode->valueList.splice(LeftNode->valueList.end(), RightNode->valueList);
+			if (memMode)
+			{
+				LeftNode->valueList.splice(LeftNode->valueList.end(), RightNode->valueList);
+			}
+			else
+			{
+				LeftNode->indexList.splice(LeftNode->indexList.end(), RightNode->indexList);
+			}
 			LeftNode->keyList.splice(LeftNode->keyList.end(), RightNode->keyList);
 			LeftNode->nodeSize += RightNode->nodeSize;
 		}
@@ -568,12 +1010,12 @@ Node *bpt::merge(Node *scantnode)
 		}
 		TopNode->nodeSize--;
 		TopNode->childNodePtrs.remove(*node_it);
-		free(RightNode);
+		delete RightNode;
 		if (TopNode->parentPtr == NULL && TopNode->nodeSize == 0)
 		{
 			root = LeftNode;
 			root->parentPtr = NULL;
-			free(TopNode);
+			delete TopNode;
 			return root;
 		}
 		return TopNode;

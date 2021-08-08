@@ -6,8 +6,12 @@
 - [x] 查询
 - [x] 修改
 - [X] 删除
-- [ ] 序列化
-- [ ] 内存缓存
+- [X] 序列化
+- [X] 反序列化
+- [X] 全内存模式
+- [X] 文件系统模式
+
+仍存在STL的list内存泄漏问题
 
 ## 编译
 
@@ -107,4 +111,22 @@ Index: 19
 Value: 19
 bpt> delete 050
 No such key
+```
+
+序列化与反序列化
+
+```bash
+bpt> save
+bpt> save ${dbname}
+```
+
+```bash
+bpt> load ${dbname}
+```
+
+操作模式
+
+```bash
+bpt> setmode fs		#模拟文件系统B+树，关键字存放在内存，数据存放在文件
+bpt> setmode mem	#全内存B+树，全部存放在内存
 ```
