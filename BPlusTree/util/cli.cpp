@@ -82,6 +82,8 @@ int main(int argc, char **argv)
 		else if (cmd.size() == 2 && !strcmp((char *)cmd[0].data(), "load"))
 		{
 			tree.load((char *)cmd[1].data());
+			tree.serialize(DBNAME);
+			tree.cacheData(DBNAME);
 			free(line);
 		}
 		else if (cmd.size() == 2 && !strcmp((char *)cmd[0].data(), "setmode"))

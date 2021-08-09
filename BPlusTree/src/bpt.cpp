@@ -164,8 +164,6 @@ bool bpt::load(char *fname)
 
 void bpt::serialize(string fname)
 {
-	// this->memMode = false;
-	// cacheData(dbName);
 	string fstr = fname;
 	fstr.append(".tmp");
 	initDB(fstr);
@@ -288,7 +286,10 @@ void bpt::Trim(string fname)
 			value_it++;
 			dataOffset++;
 		}
-		nodePtr->valueList.clear();
+		if (!memMode)
+		{
+			nodePtr->valueList.clear();
+		}
 		dbfile << "segment\n";
 		dbfile.sync();
 		dataOffset++;

@@ -56,7 +56,6 @@ private:
     Node *LocateLeaf(Node *root, string key);
     void backtrace(Node *LeafNode, Task *task);
     void initDB(string fname);
-    void cacheData(string fname);
     string fReadData(string key, uint32_t lineNum);
     uint32_t fWriteData(string key, string value);
 
@@ -75,4 +74,5 @@ public:
     bool rselect(string minkey, string maxkey);
     void serialize(string fname);
     void Trim(string fname);
+    void cacheData(string fname);
 };
