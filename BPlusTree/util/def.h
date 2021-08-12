@@ -2,7 +2,10 @@
 #define CLI_H
 
 #define NODE_ORDER	5
-#define LEAF_ORDER	6
+#define LEAF_ORDER	5
 #define DBNAME		"bpt.db"
+
+int getPSMemValue();
+int parseLine(char *line);
 
 #endif

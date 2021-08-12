@@ -3,6 +3,8 @@
 #include <fstream>
 #include "bpt.h"
 
+using namespace std;
+
 bpt::bpt(uint32_t NodeOrder, uint32_t LeafOrder, string dbName)
 {
 	setNodeOrder(NodeOrder);
@@ -13,6 +15,52 @@ bpt::bpt(uint32_t NodeOrder, uint32_t LeafOrder, string dbName)
 	memMode = true;
 	this->nodeOffset = 0;
 	this->dataOffset = 0;
+}
+
+bpt::~bpt()
+{
+	Node *nodePtr;
+	Node *childHeadPtr;
+	Node *parentEndPtr;
+	nodePtr = root;
+	if (nodePtr->childNodePtrs.empty())
+	{
+		childHeadPtr = NULL;
+	}
+	else
+	{
+		childHeadPtr = root->childNodePtrs.front();
+	}
+	while (nodePtr != NULL)
+	{
+		if (nodePtr->rightNode == NULL)
+		{
+			if (childHeadPtr == NULL)
+			{
+				delete nodePtr;
+				nodePtr = NULL;
+			}
+			else
+			{
+				parentEndPtr = nodePtr;
+				nodePtr = childHeadPtr;
+				if (nodePtr == leafHead)
+				{
+					childHeadPtr = NULL;
+				}
+				else
+				{
+					childHeadPtr = nodePtr->childNodePtrs.front();
+				}
+				delete parentEndPtr;
+			}
+		}
+		else
+		{
+			nodePtr = nodePtr->rightNode;
+			delete nodePtr->leftNode;
+		}
+	}
 }
 
 void bpt::setDBname(string name)
@@ -205,8 +253,6 @@ void bpt::initDB(string fname)
 	Node *childHeadPtr;
 	list<string>::iterator key_it;
 	list<string>::iterator value_it;
-	list<Node *> node_it;
-	list<Node *> child_it;
 	nodePtr = root;
 	childHeadPtr = root->childNodePtrs.front();
 	while (childHeadPtr != NULL)
@@ -492,24 +538,23 @@ int bpt::SearchKey(Node *node, string key)
 	{
 		return -1;
 	}
-	int left = 0;
-	int right = node->nodeSize - 1;
 	list<string>::iterator key_it;
-	while (left <= right)
+	key_it = node->keyList.begin();
+	int count = 0;
+	while (*key_it <= key)
 	{
-		int middle = (left + right) / 2;
-		key_it = node->keyList.begin();
-		advance(key_it, middle);
-		if (*key_it > key)
+		key_it++;
+		if (key_it == node->keyList.end())
 		{
-			right = middle - 1;
+			return count;
 		}
-		else
+		if (*key_it >= key)
 		{
-			left = middle + 1;
+			return count;
 		}
+		count++;
 	}
-	return right;
+	return -1;
 }
 
 void bpt::backtrace(Node *LeafNode, Task *task)
@@ -542,10 +587,10 @@ void bpt::backtrace(Node *LeafNode, Task *task)
 					}
 					else
 					{
-						nodep->keyList.remove(*old_it);
+						nodep->keyList.erase(old_it);
 					}
-					task->oldKeys->remove(*old_it);
-					task->newKeys->remove(*new_it);
+					task->oldKeys->erase(old_it);
+					task->newKeys->erase(new_it);
 				}
 			}
 			count++;
@@ -660,9 +705,9 @@ bool bpt::operate(Node *LeafNode, Task *task)
 			}
 			else if (task->opt == deletOpt)
 			{
-				LeafNode->keyList.remove(task->key);
+				LeafNode->keyList.erase(key_it);
 				task->val = *value_it;
-				LeafNode->valueList.remove(*value_it);
+				LeafNode->valueList.erase(value_it);
 				LeafNode->nodeSize--;
 				if (pos == 0 && LeafNode->leftNode == NULL)
 				{
@@ -703,9 +748,9 @@ bool bpt::operate(Node *LeafNode, Task *task)
 			}
 			else if (task->opt == deletOpt)
 			{
-				LeafNode->keyList.remove(task->key);
+				LeafNode->keyList.erase(key_it);
 				task->val = fReadData(task->key, *index_it);
-				LeafNode->indexList.remove(*index_it);
+				LeafNode->indexList.erase(index_it);
 				LeafNode->nodeSize--;
 				if (pos == 0 && LeafNode->leftNode == NULL)
 				{
@@ -977,7 +1022,7 @@ Node *bpt::merge(Node *scantnode)
 		{
 			if (*key_it == RightNode->keyList.front())
 			{
-				TopNode->keyList.remove(RightNode->keyList.front());
+				TopNode->keyList.erase(RightNode->keyList.begin());
 			}
 			if (memMode)
 			{
@@ -1010,7 +1055,7 @@ Node *bpt::merge(Node *scantnode)
 			RightNode->rightNode->leftNode = LeftNode;
 		}
 		TopNode->nodeSize--;
-		TopNode->childNodePtrs.remove(*node_it);
+		TopNode->childNodePtrs.erase(node_it);
 		delete RightNode;
 		if (TopNode->parentPtr == NULL && TopNode->nodeSize == 0)
 		{

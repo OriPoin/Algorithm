@@ -11,32 +11,32 @@ OBJECTS			:= $(patsubst $(UTILDIR)/%.cpp,$(BUILDDIR)/%.o,$(SOURCES))
 TARGET			:= bpt
 LIBS			:= -lreadline
 
+Opt_FLAGS=-march=native -O3 -pipe
+FLTO=-flto=auto -fwhole-program
+SSP_FLAGS=-fno-stack-protector
+
+COMMON_FLAGS=${Opt_FLAGS} ${SSP_FLAGS} ${FLTO}
+
+LDFLAGS=-Wl,-O3 -Wl,--as-needed -Wl,--hash-style=gnu -Wl,--sort-common -Wl,--strip-all
+
 all: dir  ${BUILDDIR}/bpt.o ${BUILDDIR}/bpt.a $(BUILDDIR)/$(TARGET) ${BUILDDIR}/gendb
 
 # $(BUILDDIR)/$(TARGET): ${CLI_SRC}
 # $(CC) $^ -o $@ $(LIBS)
 $(BUILDDIR)/$(TARGET): ${CLI_SRC}
-	$(CC) -g3 $^ ${BUILDDIR}/bpt.a -o $@ $(LIBS)
+	$(CC) ${COMMON_FLAGS} ${LDFLAGS} $^ ${BUILDDIR}/bpt.a -o $@ $(LIBS)
+# $(CC) -g3 $^ ${BUILDDIR}/bpt.a -o $@ $(LIBS)
 
 ${BUILDDIR}/bpt.o:
-	${CC} -g3 -c ${SOURCEDIR}/bpt.cpp -o $(BUILDDIR)/bpt.o
+	${CC} ${COMMON_FLAGS} -c ${SOURCEDIR}/bpt.cpp -o $(BUILDDIR)/bpt.o
+# ${CC} -g3 -c ${SOURCEDIR}/bpt.cpp -o $(BUILDDIR)/bpt.o
 
 ${BUILDDIR}/bpt.a:
 	${AR} -r ${BUILDDIR}/bpt.a $(BUILDDIR)/bpt.o
 
 ${BUILDDIR}/gendb:
-	${CC} $(UTILDIR)/gendb.cpp -o $@ -g3
-
-
-# #link parameter
-# LIB := libbpt.so
-
-# #link
-# ${build}/$(LIB):${BUILDDIR}/bpt.o
-#     $(CC) -shared -o -fPIC -o $@ $^
-# #compile
-# ${build}/bpt.o:${SOURCEDIR}/bpt.cpp
-#     $(CC) -c -fPIC $^ -o $@
+	${CC} $(UTILDIR)/gendb.cpp -o $@ ${COMMON_FLAGS}
+# ${CC} $(UTILDIR)/gendb.cpp -o $@ -g3
 
 dir:
 	mkdir -p ${BUILDDIR}

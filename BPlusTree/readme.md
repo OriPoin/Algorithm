@@ -11,8 +11,6 @@
 - [X] 全内存模式
 - [X] 文件系统模式
 
-仍存在STL的list内存泄漏问题
-
 ## 编译
 
 ```bash
@@ -47,11 +45,7 @@ make
 
 加载数据
 
-```bash
-./build/bpt -i ${DBNAME} #test.db | ${DB_SIZE}InOrder.db | ${DB_SIZE}Random.db
-```
-
-或者进入自建命令行
+进入自建命令行
 
 ```bash
 bpt> init ${DBNAME} #test.db | ${DB_SIZE}InOrder.db | ${DB_SIZE}Random.db
