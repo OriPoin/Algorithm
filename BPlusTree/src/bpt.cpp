@@ -212,6 +212,7 @@ bool bpt::load(char *fname)
 
 void bpt::serialize(string fname)
 {
+	cacheData(dbName);
 	string fstr = fname;
 	fstr.append(".tmp");
 	initDB(fstr);
@@ -223,7 +224,6 @@ void bpt::setmode(string mode)
 {
 	if (!this->memMode && mode == "mem")
 	{
-		serialize(dbName);
 		cacheData(dbName);
 		this->memMode = true;
 	}
@@ -399,14 +399,14 @@ string bpt::fReadData(string key, uint32_t lineNum)
 uint32_t bpt::fWriteData(string key, string value)
 {
 	fstream dbfile;
-	dbfile.open(dbName, fstream::in | fstream::out);
-	for (int currLineNumber = 0; currLineNumber < dataOffset; ++currLineNumber)
-	{
-		if (dbfile.ignore(numeric_limits<streamsize>::max(), dbfile.widen('\n')))
-		{
-			// skipping the line
-		}
-	}
+	dbfile.open(dbName, fstream::in | fstream::out | fstream::app);
+	// for (int currLineNumber = 0; currLineNumber < dataOffset; ++currLineNumber)
+	// {
+	// 	if (dbfile.ignore(numeric_limits<streamsize>::max(), dbfile.widen('\n')))
+	// 	{
+	// 		// skipping the line
+	// 	}
+	// }
 	dbfile << "key " << key << " "
 		   << "value " << value << "\n";
 	dataOffset++;
@@ -548,9 +548,13 @@ int bpt::SearchKey(Node *node, string key)
 		{
 			return count;
 		}
-		if (*key_it >= key)
+		else if (*key_it > key)
 		{
 			return count;
+		}
+		else if (*key_it == key)
+		{
+			return count + 1;
 		}
 		count++;
 	}
