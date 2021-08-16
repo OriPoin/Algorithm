@@ -14,7 +14,6 @@ bpt::bpt(uint32_t NodeOrder, uint32_t LeafOrder, string dbName)
 	leafHead = root;
 	memMode = true;
 	this->nodeOffset = 0;
-	this->dataOffset = 0;
 }
 
 bpt::~bpt()
@@ -212,7 +211,6 @@ bool bpt::load(char *fname)
 
 void bpt::serialize(string fname)
 {
-	cacheData(dbName);
 	string fstr = fname;
 	fstr.append(".tmp");
 	initDB(fstr);
@@ -248,7 +246,6 @@ void bpt::initDB(string fname)
 		   << "leaforder " << this->LeafOrder << "\n"
 		   << "node"
 		   << "\n";
-	nodeOffset = 4;
 	Node *nodePtr;
 	Node *childHeadPtr;
 	list<string>::iterator key_it;
@@ -263,7 +260,6 @@ void bpt::initDB(string fname)
 			dbfile << *key_it << " ";
 		}
 		dbfile << "\n";
-		nodeOffset++;
 		if (nodePtr->rightNode == NULL)
 		{
 			nodePtr = childHeadPtr;
@@ -280,12 +276,10 @@ void bpt::initDB(string fname)
 		{
 			nodePtr = nodePtr->rightNode;
 		}
-		dbfile.sync();
 	}
 	dbfile << "data"
 		   << "\n";
-	nodeOffset++;
-	dataOffset = nodeOffset;
+	nodeOffset = dbfile.tellg();
 	dbfile.close();
 }
 
@@ -295,16 +289,9 @@ void bpt::Trim(string fname)
 	dbfile.open(fname, fstream::in | fstream::out);
 	list<string>::iterator key_it;
 	list<string>::iterator value_it;
-	list<uint32_t>::iterator index_it;
-	Node *nodePtr;
-	nodePtr = leafHead;
-	string dataBeginStr = "NULL";
-	while (dataBeginStr != "data")
-	{
-		dbfile >> dataBeginStr;
-	}
-	dbfile << "\n";
-	nodePtr = leafHead;
+	list<uint64_t>::iterator index_it;
+	Node *nodePtr = leafHead;
+	dbfile.seekp(nodeOffset);
 	while (1)
 	{
 		if (nodePtr == NULL)
@@ -316,29 +303,27 @@ void bpt::Trim(string fname)
 		index_it = nodePtr->indexList.begin();
 		for (uint32_t i = 0; i < nodePtr->nodeSize; i++)
 		{
+			uint64_t pos = dbfile.tellp();
 			dbfile << "key " << *key_it << " ";
 			if (memMode)
 			{
 				dbfile << "value " << *value_it << "\n";
-				nodePtr->indexList.emplace_back(dataOffset);
+				nodePtr->indexList.emplace_back(pos);
 			}
 			else
 			{
 				dbfile << "value " << fReadData(*key_it, *index_it) << "\n";
-				*index_it = dataOffset;
+				*index_it = pos;
 				index_it++;
 			}
 			key_it++;
 			value_it++;
-			dataOffset++;
 		}
 		if (!memMode)
 		{
 			nodePtr->valueList.clear();
 		}
 		dbfile << "segment\n";
-		dbfile.sync();
-		dataOffset++;
 		nodePtr = nodePtr->rightNode;
 	}
 	dbfile.close();
@@ -347,7 +332,7 @@ void bpt::Trim(string fname)
 void bpt::cacheData(string fname)
 {
 	list<string>::iterator key_it;
-	list<uint32_t>::iterator index_it;
+	list<uint64_t>::iterator index_it;
 	Node *nodePtr = leafHead;
 	while (1)
 	{
@@ -368,17 +353,11 @@ void bpt::cacheData(string fname)
 	}
 }
 
-string bpt::fReadData(string key, uint32_t lineNum)
+string bpt::fReadData(string key, uint64_t lineNum)
 {
 	fstream dbfile;
 	dbfile.open(dbName, fstream::in);
-	for (int currLineNumber = 0; currLineNumber < lineNum; ++currLineNumber)
-	{
-		if (dbfile.ignore(numeric_limits<streamsize>::max(), dbfile.widen('\n')))
-		{
-			// skipping the line
-		}
-	}
+	dbfile.seekg(lineNum);
 	string data;
 	dbfile >> data;
 	if (data == "key")
@@ -396,22 +375,15 @@ string bpt::fReadData(string key, uint32_t lineNum)
 	return "False";
 }
 
-uint32_t bpt::fWriteData(string key, string value)
+uint64_t bpt::fWriteData(string key, string value)
 {
 	fstream dbfile;
-	dbfile.open(dbName, fstream::in | fstream::out | fstream::app);
-	// for (int currLineNumber = 0; currLineNumber < dataOffset; ++currLineNumber)
-	// {
-	// 	if (dbfile.ignore(numeric_limits<streamsize>::max(), dbfile.widen('\n')))
-	// 	{
-	// 		// skipping the line
-	// 	}
-	// }
+	dbfile.open(dbName, fstream::in | fstream::out | fstream::ate);
+	uint64_t pos = dbfile.tellp();
 	dbfile << "key " << key << " "
 		   << "value " << value << "\n";
-	dataOffset++;
 	dbfile.close();
-	return dataOffset - 1;
+	return pos;
 }
 
 bool bpt::ins(string key, string value)
@@ -538,6 +510,10 @@ int bpt::SearchKey(Node *node, string key)
 	{
 		return -1;
 	}
+	if (node->keyList.back() <= key)
+	{
+		return node->nodeSize - 1;
+	}
 	list<string>::iterator key_it;
 	key_it = node->keyList.begin();
 	int count = 0;
@@ -643,7 +619,7 @@ bool bpt::operate(Node *LeafNode, Task *task)
 	}
 	list<string>::iterator key_it;
 	list<string>::iterator value_it;
-	list<uint32_t>::iterator index_it;
+	list<uint64_t>::iterator index_it;
 	key_it = LeafNode->keyList.begin();
 	advance(key_it, pos);
 	if (task->opt == insertOpt && *key_it < task->key)
@@ -829,7 +805,7 @@ Node *bpt::split(Node *fullnode)
 		}
 		else
 		{
-			list<uint32_t>::iterator index_it = fullnode->indexList.begin();
+			list<uint64_t>::iterator index_it = fullnode->indexList.begin();
 			advance(index_it, (LeafOrder + 1) / 2);
 			fullnode->indexList.splice(newnode->indexList.begin(), fullnode->indexList, index_it, fullnode->indexList.end());
 		}

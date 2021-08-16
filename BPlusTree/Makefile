@@ -16,7 +16,7 @@ SSP_FLAGS=-fno-stack-protector
 
 COMMON_FLAGS=${Opt_FLAGS} ${SSP_FLAGS} ${FLTO}
 # COMMON_FLAGS=-g3
-# LDFLAGS=-Wl,-O3 -Wl,--as-needed -Wl,--hash-style=gnu -Wl,--sort-common -Wl,--strip-all
+LDFLAGS=-Wl,-O3 -Wl,--as-needed -Wl,--hash-style=gnu -Wl,--sort-common -Wl,--strip-all
 
 all: dir  ${BUILDDIR}/bpt.o ${BUILDDIR}/bpt.a $(BUILDDIR)/$(TARGET) ${BUILDDIR}/gendb
 

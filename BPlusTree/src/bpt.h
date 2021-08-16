@@ -17,7 +17,7 @@ struct Node
     Node *leftNode = NULL;
     Node *rightNode = NULL;
     std::list<std::string> valueList;
-    std::list<uint32_t> indexList;
+    std::list<uint64_t> indexList;
     /*----leaf----end-----*/
 };
 
@@ -47,8 +47,7 @@ private:
     Node *root;
     Node *leafHead;
     std::string dbName;
-    uint32_t nodeOffset;
-    uint32_t dataOffset;
+    uint64_t nodeOffset;
 
     int SearchKey(Node *node, std::string key);
     bool operate(Node *LeafNode, Task *task);
@@ -57,8 +56,8 @@ private:
     Node *LocateLeaf(Node *root, std::string key);
     void backtrace(Node *LeafNode, Task *task);
     void initDB(std::string fname);
-    std::string fReadData(std::string key, uint32_t lineNum);
-    uint32_t fWriteData(std::string key, std::string value);
+    std::string fReadData(std::string key, uint64_t lineNum);
+    uint64_t fWriteData(std::string key, std::string value);
 
 public:
     bpt(uint32_t NodeOrder, uint32_t LeafOrder, std::string dbName);

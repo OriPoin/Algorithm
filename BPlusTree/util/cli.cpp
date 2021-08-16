@@ -82,6 +82,8 @@ int main(int argc, char **argv)
 			tree.select(cmd[1]);
 			auto t2 = std::chrono::system_clock::now();
 			auto dt = std::chrono::duration_cast<std::chrono::nanoseconds>(t2 - t1).count();
+			std::cout << " elapsed time: " << dt << "ns" << std::endl;
+			std::cout << " used memory: " << getPSMemValue() << "kB" << std::endl;
 			free(line);
 		}
 		else if (cmd.size() == 3 && !strcmp((char *)cmd[0].data(), "update"))
@@ -90,6 +92,8 @@ int main(int argc, char **argv)
 			tree.update(cmd[1], cmd[2]);
 			auto t2 = std::chrono::system_clock::now();
 			auto dt = std::chrono::duration_cast<std::chrono::nanoseconds>(t2 - t1).count();
+			std::cout << " elapsed time: " << dt << "ns" << std::endl;
+			std::cout << " used memory: " << getPSMemValue() << "kB" << std::endl;
 			free(line);
 		}
 		else if (cmd.size() == 2 && !strcmp((char *)cmd[0].data(), "load"))
@@ -100,6 +104,8 @@ int main(int argc, char **argv)
 			tree.cacheData(DBNAME);
 			auto t2 = std::chrono::system_clock::now();
 			auto dt = std::chrono::duration_cast<std::chrono::nanoseconds>(t2 - t1).count();
+			std::cout << " elapsed time: " << dt << "ns" << std::endl;
+			std::cout << " used memory: " << getPSMemValue() << "kB" << std::endl;
 			free(line);
 		}
 		else if (cmd.size() == 2 && !strcmp((char *)cmd[0].data(), "setmode"))
@@ -113,6 +119,8 @@ int main(int argc, char **argv)
 			tree.serialize(DBNAME);
 			auto t2 = std::chrono::system_clock::now();
 			auto dt = std::chrono::duration_cast<std::chrono::nanoseconds>(t2 - t1).count();
+			std::cout << " elapsed time: " << dt << "ns" << std::endl;
+			std::cout << " used memory: " << getPSMemValue() << "kB" << std::endl;
 			free(line);
 		}
 		else if (cmd.size() == 2 && !strcmp((char *)cmd[0].data(), "save"))
@@ -121,6 +129,8 @@ int main(int argc, char **argv)
 			tree.serialize((char *)cmd[1].data());
 			auto t2 = std::chrono::system_clock::now();
 			auto dt = std::chrono::duration_cast<std::chrono::nanoseconds>(t2 - t1).count();
+			std::cout << " elapsed time: " << dt << "ns" << std::endl;
+			std::cout << " used memory: " << getPSMemValue() << "kB" << std::endl;
 			free(line);
 		}
 		else if (cmd.size() == 2 && !strcmp((char *)cmd[0].data(), "help"))
