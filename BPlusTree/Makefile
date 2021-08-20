@@ -10,11 +10,14 @@ OBJECTS			:= $(patsubst $(UTILDIR)/%.cpp,$(BUILDDIR)/%.o,$(SOURCES))
 TARGET			:= bpt
 LIBS			:= -lreadline
 
-Opt_FLAGS=-march=native -O3 -pipe
-FLTO=-flto=auto -fwhole-program
+O_FLAGS=-march=native -O3 -pipe
+GRAPHITE=-fgraphite-identity -floop-nest-optimize
 SSP_FLAGS=-fno-stack-protector
+FLTO=-flto=auto -fwhole-program
+NOPLT=-fno-plt
+IPAPTA=-fipa-pta
 
-COMMON_FLAGS=${Opt_FLAGS} ${SSP_FLAGS} ${FLTO}
+COMMON_FLAGS=${O_FLAGS} ${GRAPHITE} ${SSP_FLAGS} ${FLTO} ${NOPLT} ${IPAPTA}
 # COMMON_FLAGS=-g3
 LDFLAGS=-Wl,-O3 -Wl,--as-needed -Wl,--hash-style=gnu -Wl,--sort-common -Wl,--strip-all
 
